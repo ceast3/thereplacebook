@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheReplaceBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #3B2F2F; /* Dark Brown (Harvard style) */
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .header {
+            background-color: #3B5998; /* Facebook Blue */
+            padding: 15px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .vote-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 50px;
+            margin-top: 20px;
+        }
+        .vote-box {
+            border: 4px solid white;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+            text-align: center;
+            width: 300px;
+        }
+        .vote-box:hover {
+            transform: scale(1.05);
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .leaderboard {
+            margin-top: 30px;
+            width: 60%;
+            background-color: #2E1E1E; /* Darker brown */
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .leaderboard table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .leaderboard th, .leaderboard td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+        .leaderboard th {
+            background-color: #3B5998;
+            color: white;
+        }
+        .image {
+            width: 256px;
+            height: 256px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+    </style>
+    <script>
+        let users = [];
+
+        async function fetchUsers() {
+            const response = await fetch("/users");
+            users = await response.json();
+            showRandomPair();
+        }
+
+        function showRandomPair() {
+            if (users.length < 2) return;
+            const [user1, user2] = users.sort(() => 0.5 - Math.random()).slice(0, 2);
+            document.getElementById("left-img").src = user1.image_url;
+            document.getElementById("right-img").src = user2.image_url;
+            document.getElementById("left-name").textContent = user1.name;
+            document.getElementById("right-name").textContent = user2.name;
+            document.getElementById("left").setAttribute("data-id", user1.id);
+            document.getElementById("right").setAttribute("data-id", user2.id);
+        }
+
+        async function vote(winnerId) {
+            const loserId = document.getElementById("left").getAttribute("data-id") === winnerId.toString() ?
+                document.getElementById("right").getAttribute("data-id") :
+                document.getElementById("left").getAttribute("data-id");
+
+            await fetch("/match", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ winner_id: winnerId, loser_id: parseInt(loserId) })
+            });
+
+            showRandomPair();
+            loadLeaderboard();
+        }
+
+        async function loadLeaderboard() {
+            const response = await fetch("/users");
+            const users = await response.json();
+            const leaderboardBody = document.getElementById("leaderboard-body");
+            leaderboardBody.innerHTML = "";
+            users.slice(0, 10).forEach((user, index) => {
+                leaderboardBody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${user.name}</td>
+                        <td>${Math.round(user.rating)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.onload = () => {
+            fetchUsers();
+            loadLeaderboard();
+        };
+    </script>
+</head>
+<body>
+
+<div class="header">
+    TheReplaceBook - Who’s Hotter?
+</div>
+
+<div class="container">
+    <div class="vote-container">
+        <div id="left" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
+            <img id="left-img" class="image">
+            <p id="left-name" class="mt-2 text-lg font-semibold"></p>
+        </div>
+        <h2 class="text-3xl font-bold">VS</h2>
+        <div id="right" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
+            <img id="right-img" class="image">
+            <p id="right-name" class="mt-2 text-lg font-semibold"></p>
+        </div>
+    </div>
+
+    <h2 class="text-2xl font-semibold mt-8">Leaderboard</h2>
+    <div class="leaderboard">
+        <table>
+            <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Name</th>
+                <th>Rating</th>
+            </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

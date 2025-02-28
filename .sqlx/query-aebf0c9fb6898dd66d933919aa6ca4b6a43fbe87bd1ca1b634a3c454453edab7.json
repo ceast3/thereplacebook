@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT rating FROM users WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "rating",
+        "ordinal": 0,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "aebf0c9fb6898dd66d933919aa6ca4b6a43fbe87bd1ca1b634a3c454453edab7"
+}
