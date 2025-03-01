@@ -8,11 +8,20 @@ axum = "0.6"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio", "postgres", "runtime-tokio-native-tls"] }
+
+# 🔹 Use only PostgreSQL with SQLx
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-native-tls"] }
+
+# 🔹 Use `dotenvy`, remove `dotenv` to avoid conflicts
 dotenvy = "0.15"
-tower-http = { version = "0.4", features = ["cors","fs"] }
-hyper = "0.14.32"
-tokio-stream = { version = "0.1", features = ["net"] }
-dotenv = "0.15.0"
+
+# 🔹 `tower-http` should support `ServeDir` for static files
+tower-http = { version = "0.4", features = ["cors", "fs"] }
+
+# 🔹 AWS Secrets Manager dependencies
 aws-config = "1.5.17"
 aws-sdk-secretsmanager = "1.64.0"
+
+# 🔹 Ensure hyper works with Axum
+hyper = "0.14.32"
+tokio-stream = { version = "0.1", features = ["net"] }
