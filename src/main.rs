@@ -21,10 +21,10 @@ struct AppState {
 
 #[derive(FromRow, Debug, serde::Serialize)]
 struct User {
-    id: i64,
+    id: i32,
     name: String,
     image_url: String,
-    rating: f64,
+    rating: Option<f64>,
 }
 
 #[derive(serde::Deserialize)]
@@ -62,16 +62,22 @@ async fn get_database_url() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 // 🔹 Fetch users from the database
-async fn get_users(State(state): State<AppState>) -> Result<Json<Vec<User>>, StatusCode> {
+async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
     let users = sqlx::query_as!(
         User,
         "SELECT id, name, image_url, rating FROM users ORDER BY rating DESC"
     )
         .fetch_all(&*state.db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .unwrap()
+        .into_iter()
+        .map(|mut user| {
+            user.rating = Some(user.rating.unwrap_or(1000.0)); // ✅ Set default value if NULL
+            user
+        })
+        .collect();
 
-    Ok(Json(users))
+    Json(users)
 }
 
 // 🔹 Handle match submission and update rankings
