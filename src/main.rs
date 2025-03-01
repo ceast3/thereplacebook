@@ -29,8 +29,8 @@ struct User {
 
 #[derive(serde::Deserialize)]
 struct MatchResult {
-    winner_id: i64,
-    loser_id: i64,
+    winner_id: i32,
+    loser_id: i32,
 }
 
 // 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
@@ -85,12 +85,12 @@ async fn submit_match(
     State(state): State<AppState>,
     Json(match_result): Json<MatchResult>,
 ) -> Result<StatusCode, StatusCode> {
-    let row1 = sqlx::query!("SELECT rating FROM users WHERE id = $1", match_result.winner_id)
+    let row1 = sqlx::query!("SELECT rating FROM users WHERE id = $1", match_result.winner_id as i32)
         .fetch_one(&*state.db)
         .await
         .map_err(|_| StatusCode::NOT_FOUND)?;
 
-    let row2 = sqlx::query!("SELECT rating FROM users WHERE id = $1", match_result.loser_id)
+    let row2 = sqlx::query!("SELECT rating FROM users WHERE id = $1", match_result.loser_id as i32)
         .fetch_one(&*state.db)
         .await
         .map_err(|_| StatusCode::NOT_FOUND)?;
@@ -105,17 +105,17 @@ async fn submit_match(
     let new_winner_rating = rating_winner + k * (1.0 - e_winner);
     let new_loser_rating = rating_loser + k * (0.0 - e_loser);
 
-    sqlx::query!("UPDATE users SET rating = $1 WHERE id = $2", new_winner_rating, match_result.winner_id)
+    sqlx::query!("UPDATE users SET rating = $1 WHERE id = $2", new_winner_rating, match_result.winner_id as i32)
         .execute(&*state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    sqlx::query!("UPDATE users SET rating = $1 WHERE id = $2", new_loser_rating, match_result.loser_id)
+    sqlx::query!("UPDATE users SET rating = $1 WHERE id = $2", new_loser_rating, match_result.loser_id as i32)
         .execute(&*state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    sqlx::query!("INSERT INTO matches (winner_id, loser_id) VALUES ($1, $2)", match_result.winner_id, match_result.loser_id)
+    sqlx::query!("INSERT INTO matches (winner_id, loser_id) VALUES ($1, $2)", match_result.winner_id as i32, match_result.loser_id as i32)
         .execute(&*state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
