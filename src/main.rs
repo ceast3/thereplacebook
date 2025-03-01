@@ -5,7 +5,7 @@ use axum::{
     response::Json,
     Router,
 };
-use sqlx::{Pool, PgPool, FromRow};
+use sqlx::{PgPool, FromRow};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
