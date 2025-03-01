@@ -1,5 +1,5 @@
 # 1️⃣ Use the latest stable Rust version
-FROM rust:latest as builder
+FROM rust:latest AS builder
 
 # 2️⃣ Set the working directory
 WORKDIR /app
@@ -8,22 +8,28 @@ WORKDIR /app
 COPY . .
 
 # 4️⃣ Install required dependencies
-RUN apt update && apt install -y pkg-config libssl-dev
+RUN apt update && apt install -y pkg-config libssl-dev musl-tools
 
-# 5️⃣ Cache dependencies to speed up builds
-RUN cargo build --release
+# 5️⃣ Set the target architecture explicitly
+RUN rustup target add x86_64-unknown-linux-musl
 
-# 6️⃣ Use a lightweight base image for production
+# 6️⃣ Build the binary statically
+RUN cargo build --release --target=x86_64-unknown-linux-musl
+
+# 7️⃣ Use a lightweight base image for production
 FROM debian:buster-slim
 
-# 7️⃣ Set the working directory inside the new container
+# 8️⃣ Set the working directory inside the new container
 WORKDIR /app
 
-# 8️⃣ Copy the compiled Rust binary from the builder container
-COPY --from=builder /app/target/release/thereplacebook /app/thereplacebook
+# 9️⃣ Copy the statically compiled Rust binary
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
 
-# 9️⃣ Expose the application's port (Ensure this matches your app’s port)
+# 🔟 Ensure the binary has execution permissions
+RUN chmod +x /app/thereplacebook
+
+# 1️⃣1️⃣ Expose the application's port
 EXPOSE 3000
 
-# 🔟 Set executable permissions and define the startup command
+# 1️⃣2️⃣ Set the startup command
 CMD ["/app/thereplacebook"]
