@@ -6,6 +6,9 @@ use axum::{extract::State, routing::{get, post}, http::StatusCode, Json, Router}
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
+use Hyper::Server;
+use aws_smithy_http::result::SdkError;
+
 
 #[derive(Clone)]
 struct AppState {
@@ -50,8 +53,8 @@ async fn get_database_url() -> Result<String, aws_sdk_secretsmanager::Error> {
         }
     }
 
-    Err(aws_sdk_secretsmanager::Error::Unhandled("Secret not found".into()))
-}
+
+    Err(SdkError::construction_failure("Secret not found".to_string()))}
 
 async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
     let users = sqlx::query_as!(
@@ -118,7 +121,11 @@ async fn main() -> Result<(), sqlx::Error> {
         .with_state(state);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app.into_make_service()).await.unwrap();
 
+    Server::from_tcp(listener)
+        .unwrap()
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
     Ok(())
 }
