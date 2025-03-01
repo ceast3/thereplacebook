@@ -1,48 +1,31 @@
-# Use the latest Rust image with Cargo
-FROM rust:latest AS builder
+# Use a Rust image based on x86_64 Linux to match the target
+FROM messense/rust-musl-cross:x86_64-musl as builder
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Copy source files
+# Copy Cargo files first to cache dependencies
+COPY Cargo.toml Cargo.lock ./
+
+# Fetch dependencies separately for caching
+RUN cargo fetch
+
+# Copy the source code
 COPY . .
 
-# Install dependencies required for musl
-RUN apt update && apt install -y \
-    musl-tools \
-    musl-dev \
-    build-essential \
-    cmake \
-    clang \
-    pkg-config \
-    libssl-dev \
-    gcc-multilib \
-    g++-multilib \
-    curl
-
-# Add the musl target for Rust
-RUN rustup target add x86_64-unknown-linux-musl
-
-#force cargo to use the correct musl compiler
-ENV CC=musl-gcc
-ENV CXX=musl-g++
-
-# Build the Rust application
+# Build the Rust project targeting musl (statically linked)
 RUN cargo build --release --target=x86_64-unknown-linux-musl
 
-# Use a minimal base image
-FROM debian:buster-slim
+# Use a minimal base image for production
+FROM alpine:latest
 
 # Set working directory
 WORKDIR /app
 
-# Install OpenSSL runtime
-RUN apt update && apt install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
-
-# Copy compiled binary from the builder
+# Copy the built binary
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
 
-# Ensure the binary has execution permissions
+# Ensure execution permissions
 RUN chmod +x /app/thereplacebook
 
 # Expose the application port
