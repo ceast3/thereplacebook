@@ -1,34 +1,42 @@
-# Use a Rust image based on x86_64 Linux to match the target
+# Use musl cross-compilation image for Rust on Mac M1
 FROM messense/rust-musl-cross:x86_64-musl as builder
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy Cargo files first to cache dependencies
+# Install necessary dependencies
+RUN apt update && apt install -y \
+    pkg-config \
+    cmake \
+    clang \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only necessary files for caching dependencies
 COPY Cargo.toml Cargo.lock ./
 
-# Fetch dependencies separately for caching
+# Fetch dependencies before adding source code
 RUN cargo fetch
 
-# Copy the source code
+# Copy application source code
 COPY . .
 
-# Build the Rust project targeting musl (statically linked)
+# Build the Rust application statically
 RUN cargo build --release --target=x86_64-unknown-linux-musl
 
-# Use a minimal base image for production
+# Use a minimal base image
 FROM alpine:latest
 
 # Set working directory
 WORKDIR /app
 
-# Copy the built binary
+# Copy compiled binary from builder stage
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
 
-# Ensure execution permissions
+# Set execute permissions
 RUN chmod +x /app/thereplacebook
 
-# Expose the application port
+# Expose application port
 EXPOSE 3000
 
 # Run the application
