@@ -1,0 +1,10 @@
+version: 1.0
+runtime: python3
+build:
+  commands:
+    - apt update && apt install -y pkg-config libssl-dev
+    - cargo build --release
+run:
+  command: ./target/release/thereplacebook
+  network:
+    port: 3000
