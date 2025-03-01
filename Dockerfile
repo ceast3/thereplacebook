@@ -16,10 +16,16 @@ RUN apt update && apt install -y \
     clang \
     pkg-config \
     libssl-dev \
+    gcc-multilib \
+    g++-multilib \
     curl
 
 # Add the musl target for Rust
 RUN rustup target add x86_64-unknown-linux-musl
+
+#force cargo to use the correct musl compiler
+ENV CC=musl-gcc
+ENV CXX=musl-g++
 
 # Build the Rust application
 RUN cargo build --release --target=x86_64-unknown-linux-musl
