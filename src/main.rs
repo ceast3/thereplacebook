@@ -1,15 +1,11 @@
 use std::net::SocketAddr;
-use axum::{
-    routing::{get, post},
-    Router,
-};
+use axum::Router;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use dotenvy::dotenv;
 use std::env;
 use tower_http::services::ServeDir;
-use axum::serve;
 
 #[derive(Clone)]
 struct AppState {
