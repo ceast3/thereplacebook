@@ -1,13 +1,13 @@
-# Use the latest stable Rust version
+# Use the latest Rust image with Cargo
 FROM rust:latest AS builder
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy all files from your project to the container
+# Copy source files
 COPY . .
 
-# Install required dependencies
+# Install dependencies required for musl
 RUN apt update && apt install -y \
     musl-tools \
     musl-dev \
@@ -18,28 +18,22 @@ RUN apt update && apt install -y \
     libssl-dev \
     curl
 
-# Install `cross` inside the container
-RUN cargo install cross
-
-# Ensure the `cargo` bin directory is in the `PATH`
-ENV PATH="/root/.cargo/bin:$PATH"
-
-# Add the required Rust target
+# Add the musl target for Rust
 RUN rustup target add x86_64-unknown-linux-musl
 
-# Build the Rust application using `cross`
-RUN cross build --release --target x86_64-unknown-linux-musl
+# Build the Rust application
+RUN cargo build --release --target=x86_64-unknown-linux-musl
 
-# Use a minimal base image for the final stage
+# Use a minimal base image
 FROM debian:buster-slim
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
 # Install OpenSSL runtime
 RUN apt update && apt install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy the compiled binary
+# Copy compiled binary from the builder
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
 
 # Ensure the binary has execution permissions
@@ -48,5 +42,5 @@ RUN chmod +x /app/thereplacebook
 # Expose the application port
 EXPOSE 3000
 
-# Set the startup command
+# Run the application
 CMD ["/app/thereplacebook"]
