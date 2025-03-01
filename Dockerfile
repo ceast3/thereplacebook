@@ -17,11 +17,12 @@ WORKDIR /app
 # 4️⃣ Copy Cargo files separately to optimize Docker caching
 COPY Cargo.toml Cargo.lock ./
 
+# 6️⃣ Copy the project source code
+COPY . .
+
 # 5️⃣ Fetch dependencies before copying the entire source code
 RUN cargo fetch
 
-# 6️⃣ Copy the project source code
-COPY . .
 
 # 7️⃣ Set the target for musl
 RUN rustup target add x86_64-unknown-linux-musl
