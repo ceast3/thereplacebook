@@ -38,8 +38,7 @@ async fn get_database_url() -> Result<String, Box<dyn std::error::Error>> {
     let secret_name = "replacebook-db-secret";  // 🔹 Update this with your AWS Secret Name
     let region = Region::new("us-east-1");      // 🔹 Change if your AWS region is different
 
-    let config = aws_config::defaults(BehaviorVersion::v2023_11_09())
-        .region(region)
+    let config = aws_config::defaults(BehaviorVersion::v2024_03_28())        .region(region)
         .load()
         .await;
 
