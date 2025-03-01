@@ -2,18 +2,18 @@ use axum::{
     extract::State,
     routing::{get, post},
     http::StatusCode,
-    response::{Html, IntoResponse},
     Json, Router,
 };
-use sqlx::{PgPool, FromRow}; // Removed `Pool`
+use sqlx::{PgPool, FromRow};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use dotenvy::dotenv;
 use std::env;
 use tower_http::services::ServeDir;
-use aws_smithy_http::result::SdkError; // ✅ Fix for missing `aws_smithy_http`
-use aws_config::{BehaviorVersion, Region}; // ✅ Added correct AWS SDK imports
-use aws_sdk_secretsmanager::Client;
+use hyper::Server;
+use tower::make::Shared;
+use tower::ServiceExt;
+
 
 #[derive(Clone)]
 struct AppState {
@@ -22,16 +22,16 @@ struct AppState {
 
 #[derive(FromRow, Debug, serde::Serialize)]
 struct User {
-    id: i32, // ✅ Fixed type mismatch (was `i64`, expected `i32`)
+    id: i64,
     name: String,
     image_url: String,
-    rating: f64,
+    rating: Option<f64>,
 }
 
 #[derive(serde::Deserialize)]
 struct MatchResult {
-    winner_id: i32, // ✅ Fixed type mismatch
-    loser_id: i32,  // ✅ Fixed type mismatch
+    winner_id: i32,
+    loser_id: i32,
 }
 
 async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
@@ -41,7 +41,16 @@ async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
     )
         .fetch_all(&*state.db)
         .await
-        .unwrap();
+        .unwrap()
+        .into_iter()
+        .map(|user| User {
+            id: user.id,
+            name: user.name,
+            image_url: user.image_url,
+            rating: Some(user.rating.unwrap_or(1000.0)), // ✅ Fixed unwrap_or usage
+        })
+        .collect::<Vec<User>>();
+
     Json(users)
 }
 
@@ -104,19 +113,21 @@ async fn main() {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    // ✅ Fixed database connection type
     let db = PgPool::connect(&database_url).await.unwrap();
     let state = AppState { db: Arc::new(db) };
 
     let app = Router::new()
         .route("/users", get(get_users))
         .route("/match", post(submit_match))
-        .nest_service("/", ServeDir::new("static")) // ✅ Serves static files
+        .nest_service("/", ServeDir::new("static"))
         .with_state(state);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::Server::bind(&listener.local_addr().unwrap()) // ✅ Fixed `serve` error
-        .serve(app.into_make_service())
+    // ✅ Correctly wrap the router to be used with `hyper::Server`
+    let service = app.into_make_service().map_err(|err| eprintln!("Error: {:?}", err));
+
+    Server::bind(&listener.local_addr().unwrap())
+        .serve(service) // ✅ FIXED serve() issue
         .await
         .unwrap();
 }
