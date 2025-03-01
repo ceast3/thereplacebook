@@ -1,51 +1,57 @@
-# 1️⃣ Use the latest stable Rust version
+# 1️⃣ Use Rust official image for building
 FROM rust:latest AS builder
 
-# 2️⃣ Set the working directory
-WORKDIR /app
-
-# 3️⃣ Copy all files from your project to the container
-COPY . .
-
-# 4️⃣ Install required dependencies (including OpenSSL)
+# 2️⃣ Install dependencies for musl-based builds
 RUN apt update && apt install -y \
-    pkg-config \
-    libssl-dev \
     musl-tools \
     musl-dev \
     build-essential \
+    pkg-config \
+    libssl-dev \
     cmake \
     clang
 
-# 5️⃣ Set the target architecture explicitly
+# 3️⃣ Set working directory
+WORKDIR /app
+
+# 4️⃣ Copy Cargo files separately to optimize Docker caching
+COPY Cargo.toml Cargo.lock ./
+
+# 5️⃣ Fetch dependencies before copying the entire source code
+RUN cargo fetch
+
+# 6️⃣ Copy the project source code
+COPY . .
+
+# 7️⃣ Set the target for musl
 RUN rustup target add x86_64-unknown-linux-musl
 
-# 6️⃣ Set environment variables for OpenSSL
+# 8️⃣ Explicitly set environment variables for OpenSSL
 ENV OPENSSL_DIR=/usr \
     OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu \
     OPENSSL_INCLUDE_DIR=/usr/include \
     PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
 
-# 7️⃣ Build the binary statically
+# 9️⃣ Build the Rust application with musl
 RUN cargo build --release --target=x86_64-unknown-linux-musl
 
-# 8️⃣ Use a lightweight base image for production
-FROM debian:buster-slim
+# 🔟 Use a lightweight production image
+FROM alpine:latest
 
-# 9️⃣ Set the working directory inside the new container
-WORKDIR /app
+# 1️⃣1️⃣ Install required runtime dependencies
+RUN apk --no-cache add ca-certificates
 
-# 🔟 Install OpenSSL runtime in the final container
-RUN apt update && apt install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+# 1️⃣2️⃣ Set working directory
+WORKDIR /usr/local/bin
 
-# 1️⃣1️⃣ Copy the statically compiled Rust binary
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
+# 1️⃣3️⃣ Copy the compiled binary from the builder stage
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /usr/local/bin/thereplacebook
 
-# 1️⃣2️⃣ Ensure the binary has execution permissions
-RUN chmod +x /app/thereplacebook
+# 1️⃣4️⃣ Ensure execution permissions
+RUN chmod +x /usr/local/bin/thereplacebook
 
-# 1️⃣3️⃣ Expose the application's port
+# 1️⃣5️⃣ Expose the application's port
 EXPOSE 3000
 
-# 1️⃣4️⃣ Set the startup command
-CMD ["/app/thereplacebook"]
+# 1️⃣6️⃣ Define the startup command
+CMD ["./thereplacebook"]
