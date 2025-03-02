@@ -15,7 +15,7 @@ RUN apt update && apt install -y \
 # Copy only necessary files for caching dependencies
 COPY Cargo.toml Cargo.lock ./
 # Copy static files to the container
-COPY static/ /app/static/
+
 # Fetch dependencies before adding source code
 RUN cargo fetch
 
@@ -33,6 +33,9 @@ WORKDIR /app
 
 # Copy compiled binary from builder stage
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
+
+# Copy static files separately to ensure they exist in final container
+COPY static/ /app/static/
 
 # Set execute permissions
 RUN chmod +x /app/thereplacebook
