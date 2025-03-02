@@ -1,4 +1,5 @@
 use aws_sdk_secretsmanager::operation::get_secret_value::GetSecretValueError;
+use aws_sdk_secretsmanager::error::SdkError;
 use axum::{
     extract::State,
     routing::{get, post},
@@ -6,11 +7,11 @@ use axum::{
     response::Json,
     Router,
 };
-use sqlx::{PgPool, FromRow};
+use sqlx::{PgPool, FromRow, Row};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
-use aws_config::{self, BehaviorVersion, Region};
+use aws_config::{self, BehaviorVersion};
 use aws_sdk_secretsmanager::Client as SecretsClient;
 use serde_json::Value;
 use std::env;
@@ -35,7 +36,7 @@ struct MatchResult {
 }
 
 // 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
-async fn get_database_url() -> Result<String, GetSecretValueError> {
+async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
     let secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:replacebook-db-secret-XYZ";
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
     let client = SecretsClient::new(&config);
@@ -47,26 +48,28 @@ async fn get_database_url() -> Result<String, GetSecretValueError> {
 
     if let Some(secret_string) = response.secret_string() {
         let parsed: Value = serde_json::from_str(&secret_string)
-            .map_err(|_| GetSecretValueError::Unhandled("Invalid JSON format".to_string().into()))?;
+            .map_err(|_| SdkError::construction_failure("Invalid JSON format".to_string()))?;
 
         if let Some(db_url) = parsed.get("DATABASE_URL").and_then(|s| s.as_str()) {
             return Ok(db_url.to_string());
         }
     }
 
-    Err(GetSecretValueError::Unhandled("DATABASE_URL not found in secret".to_string().into()))
+    Err(SdkError::construction_failure("DATABASE_URL not found in secret".to_string()))
 }
 
 // 🔹 Fetch users from the database (✅ Fixed SQLx query)
 async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
-    let users = sqlx::query_as::<_, User>("SELECT id, name, image_url, rating FROM users ORDER BY rating DESC")
+    let users = sqlx::query("SELECT id, name, image_url, rating FROM users ORDER BY rating DESC")
         .fetch_all(&*state.db)
         .await
         .unwrap()
         .into_iter()
-        .map(|mut user| {
-            user.rating = Some(user.rating.unwrap_or(1000.0)); // ✅ Default rating if NULL
-            user
+        .map(|row| User {
+            id: row.try_get("id").unwrap(),
+            name: row.try_get("name").unwrap(),
+            image_url: row.try_get("image_url").unwrap(),
+            rating: Some(row.try_get("rating").unwrap_or(1000.0)), // ✅ Default rating if NULL
         })
         .collect();
 
