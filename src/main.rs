@@ -37,7 +37,7 @@ struct MatchResult {
 
 // 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
 async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
-    let secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:replacebook-db-secret-XYZ";
+    let secret_arn = "arn:aws:secretsmanager:us-east-1:195275632223:secret:replacebook-db-secret-r1e8LH";
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
     let client = SecretsClient::new(&config);
 
