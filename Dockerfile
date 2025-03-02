@@ -40,6 +40,10 @@ COPY static/ /app/static/
 # Set execute permissions
 RUN chmod +x /app/thereplacebook
 
+# Pass AWS credentials to the container
+ENV AWS_REGION=us-east-1
+ENV AWS_DEFAULT_REGION=us-east-1
+
 # Expose application port
 EXPOSE 3000
 
