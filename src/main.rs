@@ -1,5 +1,3 @@
-use aws_sdk_secretsmanager::operation::get_secret_value::GetSecretValueError;
-use aws_sdk_secretsmanager::error::SdkError;
 use axum::{
     extract::State,
     routing::{get, post},
@@ -12,7 +10,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
 use aws_config::{self, BehaviorVersion};
-use aws_sdk_secretsmanager::Client as SecretsClient;
+use aws_sdk_secretsmanager::{Client as SecretsClient, error::SdkError, operation::get_secret_value::GetSecretValueError};
 use serde_json::Value;
 use std::env;
 
@@ -34,15 +32,16 @@ struct MatchResult {
     winner_id: i32,
     loser_id: i32,
 }
-
+#[::tokio::main]
 // 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
 async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
-    let secret_arn = "arn:aws:secretsmanager:us-east-1:195275632223:secret:replacebook-db-secret-r1e8LH";
-    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let secret_name = "replacebook-db-secret"; // 🔹 Use secret name (not full ARN)
+
+    let config = aws_config::defaults(BehaviorVersion::v2023_11_09()).load().await;
     let client = SecretsClient::new(&config);
 
     let response = client.get_secret_value()
-        .secret_id(secret_arn)
+        .secret_id(secret_name)
         .send()
         .await?;
 
