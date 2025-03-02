@@ -14,7 +14,8 @@ RUN apt update && apt install -y \
 
 # Copy only necessary files for caching dependencies
 COPY Cargo.toml Cargo.lock ./
-
+# Copy static files to the container
+COPY static /app/static
 # Fetch dependencies before adding source code
 RUN cargo fetch
 
