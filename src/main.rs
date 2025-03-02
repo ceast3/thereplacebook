@@ -10,9 +10,11 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
 use aws_config::{self, BehaviorVersion};
-use aws_sdk_secretsmanager::{Client as SecretsClient, error::SdkError, operation::get_secret_value::GetSecretValueError};
+use aws_sdk_secretsmanager::Client as SecretsClient;
 use serde_json::Value;
 use std::env;
+use aws_sdk_secretsmanager::operation::get_secret_value::GetSecretValueError;
+use aws_sdk_secretsmanager::error::SdkError;
 
 #[derive(Clone)]
 struct AppState {
@@ -32,16 +34,16 @@ struct MatchResult {
     winner_id: i32,
     loser_id: i32,
 }
-#[::tokio::main]
-// 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
-async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
-    let secret_name = "replacebook-db-secret"; // 🔹 Use secret name (not full ARN)
 
-    let config = aws_config::defaults(BehaviorVersion::v2023_11_09()).load().await;
+// 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
+/* async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
+    let secret_arn = "arn:aws:secretsmanager:us-east-1:195275632223:secret:replacebook-db-secret-r1e8LH";
+    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+
     let client = SecretsClient::new(&config);
 
     let response = client.get_secret_value()
-        .secret_id(secret_name)
+        .secret_id(secret_arn)
         .send()
         .await?;
 
@@ -56,7 +58,38 @@ async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
 
     Err(SdkError::construction_failure("DATABASE_URL not found in secret".to_string()))
 }
+*/
+async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
+    // ✅ First, check if DATABASE_URL is already set (for local dev)
+    if let Ok(db_url) = env::var("DATABASE_URL") {
+        println!("✅ Using DATABASE_URL from environment");
+        return Ok(db_url);
+    }
 
+    // ✅ Otherwise, retrieve from AWS Secrets Manager
+    let secret_arn = "arn:aws:secretsmanager:us-east-1:195275632223:secret:replacebook-db-secret-r1e8LH";
+
+    // ✅ Load AWS credentials (Works for ECS IAM Role & local credentials)
+    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let client = SecretsClient::new(&config);
+
+    let response = client.get_secret_value()
+        .secret_id(secret_arn)
+        .send()
+        .await?;
+
+    if let Some(secret_string) = response.secret_string() {
+        let parsed: Value = serde_json::from_str(&secret_string)
+            .expect("Invalid JSON format");
+
+        if let Some(db_url) = parsed.get("DATABASE_URL").and_then(|s| s.as_str()) {
+            println!("✅ Retrieved DATABASE_URL from AWS Secrets Manager");
+            return Ok(db_url.to_string());
+        }
+    }
+
+    Err(SdkError::construction_failure("DATABASE_URL not found in secret".to_string()))
+}
 // 🔹 Fetch users from the database (✅ Fixed SQLx query)
 async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
     let users = sqlx::query("SELECT id, name, image_url, rating FROM users ORDER BY rating DESC")
@@ -137,7 +170,6 @@ async fn submit_match(
 async fn main() -> Result<(), sqlx::Error> {
     let database_url = get_database_url().await.expect("Failed to retrieve DATABASE_URL");
     env::set_var("DATABASE_URL", &database_url);
-
     println!("✅ Successfully retrieved DATABASE_URL from Secrets Manager!");
 
     // Now connect to the database
@@ -153,5 +185,4 @@ async fn main() -> Result<(), sqlx::Error> {
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app.into_make_service()).await.unwrap();
 
-    Ok(())
-}
+    Ok(())}
