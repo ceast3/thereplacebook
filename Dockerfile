@@ -5,16 +5,15 @@ FROM messense/rust-musl-cross:x86_64-musl as builder
 WORKDIR /app
 
 # Install necessary dependencies
-RUN apt update && apt install -y \
-    pkg-config \
-    cmake \
-    clang \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+#RUN apt update && apt install -y \
+#    pkg-config \
+#    cmake \
+#    clang \
+#    curl \
+#    && rm -rf /var/lib/apt/lists/*
 
 # Copy only necessary files for caching dependencies
 COPY Cargo.toml Cargo.lock ./
-# Copy static files to the container
 
 # Fetch dependencies before adding source code
 RUN cargo fetch
@@ -31,6 +30,9 @@ FROM alpine:latest
 # Set working directory
 WORKDIR /app
 
+# Install required system packages for runtime
+RUN apk add --no-cache ca-certificates
+
 # Copy compiled binary from builder stage
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/thereplacebook /app/thereplacebook
 
@@ -45,7 +47,7 @@ ENV AWS_REGION=us-east-1
 ENV AWS_DEFAULT_REGION=us-east-1
 
 # Expose application port
-EXPOSE 3000
+EXPOSE 80
 
 # Run the application
 CMD ["/app/thereplacebook"]

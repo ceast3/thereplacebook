@@ -30,9 +30,32 @@ struct User {
 }
 
 #[derive(serde::Deserialize)]
+struct NewUser {
+    name: String,
+    image_url: String,
+}
+
+#[derive(serde::Deserialize)]
 struct MatchResult {
     winner_id: i32,
     loser_id: i32,
+}
+async fn add_user(
+    State(state): State<AppState>,
+    Json(new_user): Json<NewUser>,
+) -> Result<Json<User>, StatusCode> {
+    let inserted_user = sqlx::query_as!(
+        User,
+        "INSERT INTO users (name, image_url, rating) VALUES ($1, $2, $3) RETURNING id, name, image_url, rating",
+        new_user.name,
+        new_user.image_url,
+        1000.0  // Default rating
+    )
+        .fetch_one(&*state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(inserted_user))
 }
 
 // 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
@@ -182,7 +205,7 @@ async fn main() -> Result<(), sqlx::Error> {
         .nest_service("/", ServeDir::new("static"))
         .with_state(state);
 
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:80").await.unwrap();
     axum::serve(listener, app.into_make_service()).await.unwrap();
 
     Ok(())}
