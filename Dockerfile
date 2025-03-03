@@ -23,6 +23,9 @@ FROM alpine:latest
 WORKDIR /app
 
 # Install required system packages for runtime
+RUN apk add --no-cache ca-certificates aws-cli
+
+# Install required system packages for runtime
 RUN apk add --no-cache ca-certificates
 
 # Copy compiled binary from builder stage

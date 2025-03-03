@@ -108,6 +108,7 @@ async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
             println!("✅ Retrieved DATABASE_URL from AWS Secrets Manager");
             return Ok(db_url.to_string());
         }
+
     }
 
     Err(SdkError::construction_failure("DATABASE_URL not found in secret".to_string()))
