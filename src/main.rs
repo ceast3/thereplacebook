@@ -44,13 +44,12 @@ async fn add_user(
     State(state): State<AppState>,
     Json(new_user): Json<NewUser>,
 ) -> Result<Json<User>, StatusCode> {
-    let inserted_user = sqlx::query_as!(
-        User,
-        "INSERT INTO users (name, image_url, rating) VALUES ($1, $2, $3) RETURNING id, name, image_url, rating",
-        new_user.name,
-        new_user.image_url,
-        1000.0  // Default rating
+    let inserted_user = sqlx::query_as::<_, User>(
+        "INSERT INTO users (name, image_url, rating) VALUES ($1, $2, $3) RETURNING id, name, image_url, rating"
     )
+        .bind(new_user.name)
+        .bind(new_user.image_url)
+        .bind(1000.0) // Default rating
         .fetch_one(&*state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
