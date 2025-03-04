@@ -13,7 +13,7 @@
             text-align: center;
         }
         .header {
-            background-color: #D32F2F; /* Red Banner */
+            background-color: #902118FF; /* Red Banner */
             padding: 15px;
             font-size: 24px;
             font-weight: bold;
@@ -32,10 +32,11 @@
         }
         .vote-container {
             display: flex;
-            flex-wrap: wrap;
             justify-content: center;
             align-items: center;
             gap: 20px;
+            width: 100%;
+            flex-wrap: nowrap;
         }
         .vote-box {
             border: 4px solid black;
@@ -44,7 +45,7 @@
             cursor: pointer;
             transition: transform 0.2s ease-in-out;
             text-align: center;
-            width: 90%;
+            flex: 1;
             max-width: 300px;
         }
         .vote-box:hover {
@@ -69,7 +70,7 @@
             text-align: center;
         }
         .leaderboard th {
-            background-color: #D32F2F;
+            background-color: #902118;
             color: white;
         }
         .image {
@@ -88,6 +89,7 @@
                 flex-direction: column;
             }
             .vote-box {
+                max-width: 90%;
                 width: 100%;
             }
         }
@@ -103,7 +105,11 @@
 
         function showRandomPair() {
             if (users.length < 2) return;
-            const [user1, user2] = users.sort(() => 0.5 - Math.random()).slice(0, 2);
+            let user1, user2;
+            do {
+                [user1, user2] = users.sort(() => 0.5 - Math.random()).slice(0, 2);
+            } while (user1.id === user2.id);
+
             document.getElementById("left-img").src = user1.image_url;
             document.getElementById("right-img").src = user2.image_url;
             document.getElementById("left-name").textContent = user1.name;
@@ -152,10 +158,10 @@
 <body>
 
 <div class="header">
-    Who's Your Baddy?
+    ReplaceBook - Who's Your Baddy?
 </div>
 
-<p class="text-lg font-semibold mt-4">Vote for the baddest billionaire.</p>
+<p class="text-lg font-semibold mt-4">Who's worse? Click to choose. </p>
 
 <div class="container">
     <div class="vote-container">
