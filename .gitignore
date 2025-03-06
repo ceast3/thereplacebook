@@ -2,5 +2,5 @@ target
 Cargo.lock
 node_modules
 .env
+full_dump.sql
 
-.env
