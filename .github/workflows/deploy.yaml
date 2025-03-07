@@ -4,7 +4,25 @@ on:
   push:
     branches:
       - main
-- name: Get OIDC Token
-  run: |
-    echo "TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" -H "Accept: application/json" \
-    $ACTIONS_ID_TOKEN_REQUEST_URL | jq -r '.value')" >> $GITHUB_ENV
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write  # Required for OIDC authentication
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get OIDC Token
+        id: get-oidc-token
+        run: |
+          TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" -H "Accept: application/json" \
+          $ACTIONS_ID_TOKEN_REQUEST_URL | jq -r '.value')
+          echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Print OIDC Token (For Debugging)
+        run: echo "$OIDC_TOKEN"
