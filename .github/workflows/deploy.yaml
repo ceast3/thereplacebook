@@ -26,3 +26,13 @@ jobs:
 
       - name: Print OIDC Token (For Debugging)
         run: echo "$OIDC_TOKEN"
+
+      - name: Save OIDC Token to File
+        run: echo "$OIDC_TOKEN" > oidc_token.txt
+      
+      - name: Upload OIDC Token as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: oidc-token
+          path: oidc_token.txt
+          
