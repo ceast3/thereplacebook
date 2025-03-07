@@ -31,7 +31,7 @@ jobs:
         run: echo "$OIDC_TOKEN" > oidc_token.txt
       
       - name: Upload OIDC Token as Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oidc-token
           path: oidc_token.txt
