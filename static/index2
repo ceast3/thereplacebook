@@ -118,72 +118,72 @@
         }
     </style>
     <script>
-        let users = [];
+            let users = [];
 
-        async function fetchUsers() {
-            const response = await fetch("/users");
-            users = await response.json();
-            showRandomPair();
-        }
+            async function fetchUsers() {
+                const response = await fetch("/users");
+                users = await response.json();
+                showRandomPair();
+            }
 
-        function showRandomPair() {
-            if (users.length < 2) return;
-            let user1, user2;
-            do {
-                user1 = users[Math.floor(Math.random() * users.length)];
-                user2 = users[Math.floor(Math.random() * users.length)];
-            } while (user1.id === user2.id);
+            function showRandomPair() {
+                if (users.length < 2) return;
+                let user1, user2;
+                do {
+                    user1 = users[Math.floor(Math.random() * users.length)];
+                    user2 = users[Math.floor(Math.random() * users.length)];
+                } while (user1.id === user2.id);
 
-            document.getElementById("left-img").src = user1.image_url;
-            document.getElementById("right-img").src = user2.image_url;
-            document.getElementById("left-name").textContent = user1.name;
-            document.getElementById("right-name").textContent = user2.name;
-            document.getElementById("left-company").textContent = user1.company;
-            document.getElementById("right-company").textContent = user2.company;
-            document.getElementById("left-net_worth").textContent = `Net Worth: ${user1.net_worth}`;
-            document.getElementById("right-net_worth").textContent = `Net Worth: ${user2.net_worth}`;
-            document.getElementById("left-bio").textContent = user1.biography;
-            document.getElementById("right-bio").textContent = user2.biography;
-            document.getElementById("left").setAttribute("data-id", user1.id);
-            document.getElementById("right").setAttribute("data-id", user2.id);
-        }
+                document.getElementById("left-img").src = user1.image_url;
+                document.getElementById("right-img").src = user2.image_url;
+                document.getElementById("left-name").textContent = user1.name;
+                document.getElementById("right-name").textContent = user2.name;
+                document.getElementById("left-company").textContent = user1.company;
+                document.getElementById("right-company").textContent = user2.company;
+                document.getElementById("left-net_worth").textContent = `Net Worth: ${user1.net_worth}`;
+                document.getElementById("right-net_worth").textContent = `Net Worth: ${user2.net_worth}`;
+                document.getElementById("left-bio").textContent = user1.biography;
+                document.getElementById("right-bio").textContent = user2.biography;
+                document.getElementById("left").setAttribute("data-id", user1.id);
+                document.getElementById("right").setAttribute("data-id", user2.id);
+            }
 
-        async function vote(winnerId) {
-            const loserId = document.getElementById("left").getAttribute("data-id") === winnerId.toString() ?
-                document.getElementById("right").getAttribute("data-id") :
-                document.getElementById("left").getAttribute("data-id");
+            async function vote(winnerId) {
+                const loserId = document.getElementById("left").getAttribute("data-id") === winnerId.toString() ?
+                    document.getElementById("right").getAttribute("data-id") :
+                    document.getElementById("left").getAttribute("data-id");
 
-            await fetch("/match", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ winner_id: winnerId, loser_id: parseInt(loserId) })
-            });
+                await fetch("/match", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ winner_id: winnerId, loser_id: parseInt(loserId) })
+                });
 
-            showRandomPair();
-            loadLeaderboard();
-        }
+                showRandomPair();
+                loadLeaderboard();
+            }
 
-        async function loadLeaderboard() {
-            const response = await fetch("/users");
-            const users = await response.json();
-            const leaderboardBody = document.getElementById("leaderboard-body");
-            leaderboardBody.innerHTML = "";
-            users.slice(0, 20).forEach((user, index) => {
-                leaderboardBody.innerHTML += `
+            async function loadLeaderboard() {
+                const response = await fetch("/users");
+                const users = await response.json();
+                const leaderboardBody = document.getElementById("leaderboard-body");
+                leaderboardBody.innerHTML = "";
+                users.slice(0, 20).forEach((user, index) => {
+                    leaderboardBody.innerHTML += `
                         <tr>
                             <td>${index + 1}</td>
                             <td>${user.name}</td>
                             <td>${Math.round(user.rating)}</td>
                         </tr>
                     `;
-            });
-        }
+                });
+            }
 
-        window.onload = () => {
-            fetchUsers();
-            loadLeaderboard();
-        };
-    </script>
+            window.onload = () => {
+                fetchUsers();
+                loadLeaderboard();
+            };
+        </script>
 </head>
 <body>
 
