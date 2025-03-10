@@ -86,6 +86,24 @@
             border-radius: 10px;
             display: block;
         }
+        .info-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+            opacity: 0;
+        }
+        .vote-box:hover .info-overlay {
+            transform: translateY(0);
+            opacity: 1;
+        }
         @media (max-width: 600px) {
             .header {
                 font-size: 20px;
@@ -121,6 +139,12 @@
             document.getElementById("right-img").src = user2.image_url;
             document.getElementById("left-name").textContent = user1.name;
             document.getElementById("right-name").textContent = user2.name;
+            document.getElementById("left-company").textContent = user1.company;
+            document.getElementById("right-company").textContent = user2.company;
+            document.getElementById("left-wealth").textContent = `Wealth: ${user1.wealth}`;
+            document.getElementById("right-wealth").textContent = `Wealth: ${user2.wealth}`;
+            document.getElementById("left-bio").textContent = user1.bio;
+            document.getElementById("right-bio").textContent = user2.bio;
             document.getElementById("left").setAttribute("data-id", user1.id);
             document.getElementById("right").setAttribute("data-id", user2.id);
         }
@@ -145,7 +169,7 @@
             const users = await response.json();
             const leaderboardBody = document.getElementById("leaderboard-body");
             leaderboardBody.innerHTML = "";
-            users.slice(0, 10).forEach((user, index) => {
+            users.slice(0, 20).forEach((user, index) => {
                 leaderboardBody.innerHTML += `
                     <tr>
                         <td>${index + 1}</td>
@@ -175,11 +199,21 @@
         <div id="left" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
             <img id="left-img" class="image">
             <p id="left-name" class="mt-2 text-lg font-semibold"></p>
+            <div class="info-overlay">
+                <p id="left-company" class="text-sm"></p>
+                <p id="left-wealth" class="text-sm"></p>
+                <p id="left-bio" class="text-xs"></p>
+            </div>
         </div>
         <h2 class="text-3xl font-bold">VS</h2>
         <div id="right" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
             <img id="right-img" class="image">
             <p id="right-name" class="mt-2 text-lg font-semibold"></p>
+            <div class="info-overlay">
+                <p id="right-company" class="text-sm"></p>
+                <p id="right-wealth" class="text-sm"></p>
+                <p id="right-bio" class="text-xs"></p>
+            </div>
         </div>
     </div>
 
@@ -200,3 +234,5 @@
 
 </body>
 </html>
+
+
