@@ -18,3 +18,12 @@ INSERT INTO users (name, image_url, rating) VALUES
 ('Jeff', 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jeff_Bezos%27_iconic_laugh_%28cropped%29.jpg/384px-Jeff_Bezos%27_iconic_laugh_%28cropped%29.jpg', 1100),
 ('Bernard Arnault & family', 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Bernard_Arnault_%283%29_-_2017_%28cropped%29.jpg/367px-Bernard_Arnault_%283%29_-_2017_%28cropped%29.jpg', 1300),
 ('Warren Buffet', 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Warren_Buffett_at_the_2015_SelectUSA_Investment_Summit_%28cropped%29.jpg/360px-Warren_Buffett_at_the_2015_SelectUSA_Investment_Summit_%28cropped%29.jpg', 1180);
+
+
+INSERT INTO users (name, image_url, net_worth, biography, birthdate, nationality, industry, company, source_of_wealth, philanthropy, notable_achievements, website, twitter_handle, linkedin_profile, parental_wealth) VALUES
+    ('Jensen Huang', 'https://upload.wikimedia.org/wikipedia/commons/3/36/Jensen_Huang_20231109_%28cropped2%29.jpg', '$57.3 billion',
+     'Jensen Huang is a Taiwanese-American billionaire businessman, co-founder, and CEO of NVIDIA, a leader in graphics processing and AI computing.', '1963-02-17', 'Taiwanese-American', 'Technology, Semiconductors', 'NVIDIA',
+     'Self-Made; Built NVIDIA into a global leader in AI and gaming hardware',
+     'Supports AI research, education, and philanthropic initiatives in science and technology',
+     'Revolutionized the gaming industry with GPUs, expanded into AI computing and autonomous systems', 'https://www.nvidia.com', '@nvidia', 'https://www.linkedin.com/in/jensen-huang/',
+     'Born in Taiwan, immigrated to the U.S. and studied electrical engineering, working his way into the tech industry');
