@@ -115,7 +115,7 @@ async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
 }
 // 🔹 Fetch users from the database (✅ Fixed SQLx query)
 async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
-    let users = sqlx::query("SELECT id, name, image_url, rating FROM users ORDER BY rating DESC")
+    let users = sqlx::query("SELECT id, name, image_url, net_worth, company, biography, rating FROM users ORDER BY rating DESC")
         .fetch_all(&*state.db)
         .await
         .unwrap()
@@ -124,6 +124,9 @@ async fn get_users(State(state): State<AppState>) -> Json<Vec<User>> {
             id: row.try_get("id").unwrap(),
             name: row.try_get("name").unwrap(),
             image_url: row.try_get("image_url").unwrap(),
+            net_worth: row.try_get("net_worth").unwrap(),
+            company: row.try_get("company").unwrap(),
+            biography: row.try_get("biography").unwrap(),
             rating: Some(row.try_get("rating").unwrap_or(1000.0)), // ✅ Default rating if NULL
         })
         .collect();
