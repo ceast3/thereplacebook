@@ -141,8 +141,8 @@
             document.getElementById("right-name").textContent = user2.name;
             document.getElementById("left-company").textContent = user1.company;
             document.getElementById("right-company").textContent = user2.company;
-            document.getElementById("left-net_worth").textContent = `Net Worth: ${user1.net_worth}`;
-            document.getElementById("right-net_worth").textContent = `Net Worth: ${user2.net_worth}`;
+            document.getElementById("left-net_worth").textContent = user1.net_worth;
+            document.getElementById("right-net_worth").textContent = user2.net_worth;
             document.getElementById("left-bio").textContent = user1.biography;
             document.getElementById("right-bio").textContent = user2.biography;
             document.getElementById("left").setAttribute("data-id", user1.id);
@@ -200,8 +200,8 @@
             <img id="left-img" class="image">
             <p id="left-name" class="mt-2 text-lg font-semibold"></p>
             <div class="info-overlay">
-                <p id="left-company" class="text-sm"></p>
-                <p id="left-net_worth" class="text-sm"></p>
+                <p id="left-company" class="text-xs"></p>
+                <p id="left-net_worth" class="text-xs"></p>
                 <p id="left-bio" class="text-xs"></p>
             </div>
         </div>
@@ -210,8 +210,8 @@
             <img id="right-img" class="image">
             <p id="right-name" class="mt-2 text-lg font-semibold"></p>
             <div class="info-overlay">
-                <p id="right-company" class="text-sm"></p>
-                <p id="right-net_worth" class="text-sm"></p>
+                <p id="right-company" class="text-xs"></p>
+                <p id="right-net_worth" class="text-xs"></p>
                 <p id="right-bio" class="text-xs"></p>
             </div>
         </div>
