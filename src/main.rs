@@ -9,7 +9,7 @@ use sqlx::{PgPool, FromRow, Row};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
-use aws_config::{self, BehaviorVersion};
+use aws_config::{self, BehaviorVersion, Region};
 use aws_sdk_secretsmanager::Client as SecretsClient;
 use serde_json::Value;
 use std::env;
@@ -26,6 +26,9 @@ struct User {
     id: i32,
     name: String,
     image_url: String,
+    net_worth: Option<String>,  // ✅ Added net_worth (as TEXT)
+    biography: Option<String>,  // ✅ Added biography
+    company: Option<String>,    // ✅ Added company
     rating: Option<f64>,
 }
 
@@ -57,30 +60,6 @@ async fn add_user(
     Ok(Json(inserted_user))
 }
 
-// 🔹 Function to get `DATABASE_URL` from AWS Secrets Manager
-/* async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
-    let secret_arn = "arn:aws:secretsmanager:us-east-1:195275632223:secret:replacebook-db-secret-r1e8LH";
-    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-
-    let client = SecretsClient::new(&config);
-
-    let response = client.get_secret_value()
-        .secret_id(secret_arn)
-        .send()
-        .await?;
-
-    if let Some(secret_string) = response.secret_string() {
-        let parsed: Value = serde_json::from_str(&secret_string)
-            .map_err(|_| SdkError::construction_failure("Invalid JSON format".to_string()))?;
-
-        if let Some(db_url) = parsed.get("DATABASE_URL").and_then(|s| s.as_str()) {
-            return Ok(db_url.to_string());
-        }
-    }
-
-    Err(SdkError::construction_failure("DATABASE_URL not found in secret".to_string()))
-}
-*/
 async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
     // ✅ First, check if DATABASE_URL is already set (for local dev)
     if let Ok(db_url) = env::var("DATABASE_URL") {
@@ -88,27 +67,26 @@ async fn get_database_url() -> Result<String, SdkError<GetSecretValueError>> {
         return Ok(db_url);
     }
 
-    // ✅ Otherwise, retrieve from AWS Secrets Manager
-    let secret_arn = "arn:aws:secretsmanager:us-east-1:195275632223:secret:replacebook-db-secret-r1e8LH";
-
-    // ✅ Load AWS credentials (Works for ECS IAM Role & local credentials)
-    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let secret_name = "replacebook-db-secret";
+    let region = Region::new("us-east-1");
+    let config = aws_config::defaults(BehaviorVersion::v2023_11_09())
+        .region(region)
+        .load()
+        .await;
     let client = SecretsClient::new(&config);
 
     let response = client.get_secret_value()
-        .secret_id(secret_arn)
+        .secret_id(secret_name)
         .send()
         .await?;
 
     if let Some(secret_string) = response.secret_string() {
         let parsed: Value = serde_json::from_str(&secret_string)
             .expect("Invalid JSON format");
-
         if let Some(db_url) = parsed.get("DATABASE_URL").and_then(|s| s.as_str()) {
             println!("✅ Retrieved DATABASE_URL from AWS Secrets Manager");
             return Ok(db_url.to_string());
         }
-
     }
 
     Err(SdkError::construction_failure("DATABASE_URL not found in secret".to_string()))
