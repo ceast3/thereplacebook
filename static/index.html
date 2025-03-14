@@ -86,20 +86,18 @@
             display: block;
         }
         .info-overlay {
-            position: absolute;
-            bottom: -128;
-            left: 0;
-            width: 100%;
-            height: 50%;
+            position: relative;
+            width: 100%;  /* Stays full width */
+            height: auto; /* Adjusts dynamically to content */
             background: rgba(97, 21, 21, 0.8);
             color: white;
             text-align: center;
             padding: 10px;
             border-radius: 10px;
-            transform: translateY(100%);
-            transition: transform 0.3s ease-in-out;
             opacity: 0;
+            transition: opacity 0.3s ease-in-out;
         }
+
         .vote-box:hover .info-overlay {
             transform: translateY(0);
             opacity: 1;
