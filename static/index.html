@@ -123,6 +123,23 @@
                 width: 100%;
             }
         }
+        .vote-button {
+            margin-top: 8px;
+            padding: 8px 16px;
+            background-color: #902118;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+        }
+
+        .vote-button:hover {
+            background-color: #a52a2a;
+            transform: scale(1.05); /* Slight zoom effect on hover */
+        }
     </style>
     <script>
         let users = [];
@@ -205,16 +222,30 @@
         <div id="left" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
             <img id="left-img" class="image">
             <p id="left-name" class="mt-2 text-lg font-semibold"></p>
+
+            <!-- Vote Button -->
+            <button class="vote-button" onclick="event.stopPropagation(); vote(parseInt(this.parentElement.getAttribute('data-id')))">
+                Vote
+            </button>
+
             <div class="info-overlay">
                 <p id="left-company" class="text-xs"></p>
                 <p id="left-net_worth" class="text-xs"></p>
                 <p id="left-bio" class="text-xs"></p>
             </div>
         </div>
+
         <h2 class="text-3xl font-bold">VS</h2>
+
         <div id="right" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
             <img id="right-img" class="image">
             <p id="right-name" class="mt-2 text-lg font-semibold"></p>
+
+            <!-- Vote Button -->
+            <button class="vote-button" onclick="event.stopPropagation(); vote(parseInt(this.parentElement.getAttribute('data-id')))">
+                Vote
+            </button>
+
             <div class="info-overlay">
                 <p id="right-company" class="text-xs"></p>
                 <p id="right-net_worth" class="text-xs"></p>
