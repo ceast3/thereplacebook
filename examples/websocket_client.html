@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Replacebook - Real-time Updates</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .subscriptions {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .subscriptions h3 {
+            margin-top: 0;
+        }
+        .subscription-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .updates {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .update {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .update.wealth {
+            border-left-color: #28a745;
+        }
+        .update.stock {
+            border-left-color: #17a2b8;
+        }
+        .update.news {
+            border-left-color: #ffc107;
+        }
+        .update.system {
+            border-left-color: #6c757d;
+        }
+        .update-time {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .update-content {
+            font-size: 14px;
+        }
+        .positive {
+            color: #28a745;
+        }
+        .negative {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>The Replacebook - Real-time Updates</h1>
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <div class="controls">
+            <button id="connectBtn" onclick="connect()">Connect</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+            <button onclick="clearUpdates()">Clear Updates</button>
+        </div>
+        
+        <div class="subscriptions">
+            <h3>Subscriptions</h3>
+            <div class="subscription-form">
+                <input type="text" id="billionaireInput" placeholder="Billionaire name (e.g., Elon Musk)">
+                <button onclick="subscribeBillionaire()">Subscribe to Billionaire</button>
+                
+                <input type="text" id="symbolInput" placeholder="Stock symbol (e.g., TSLA)">
+                <button onclick="subscribeSymbol()">Subscribe to Symbol</button>
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" id="allUpdates" onchange="updateSubscription()">
+                    Subscribe to all updates (high volume)
+                </label>
+            </div>
+            <div id="currentSubscriptions" style="margin-top: 10px; font-size: 14px;"></div>
+        </div>
+        
+        <h3>Live Updates</h3>
+        <div id="updates" class="updates">
+            <p style="color: #666;">Waiting for updates...</p>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let subscription = {
+            billionaires: [],
+            industries: [],
+            symbols: [],
+            all_updates: false
+        };
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+            
+            ws = new WebSocket('ws://localhost:3000/ws');
+            
+            ws.onopen = () => {
+                updateStatus('Connected', true);
+                addUpdate('system', 'Connected to real-time updates');
+                sendPing();
+            };
+            
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            };
+            
+            ws.onclose = () => {
+                updateStatus('Disconnected', false);
+                addUpdate('system', 'Disconnected from server');
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addUpdate('system', 'Connection error occurred');
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function updateStatus(text, connected) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+            
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+        }
+        
+        function handleMessage(message) {
+            switch (message.type) {
+                case 'WealthUpdate':
+                    handleWealthUpdate(message.data);
+                    break;
+                case 'StockUpdate':
+                    handleStockUpdate(message.data);
+                    break;
+                case 'NewsUpdate':
+                    handleNewsUpdate(message.data);
+                    break;
+                case 'SystemUpdate':
+                    handleSystemUpdate(message.data);
+                    break;
+            }
+        }
+        
+        function handleWealthUpdate(data) {
+            const changeClass = data.change_percentage > 0 ? 'positive' : 'negative';
+            const changeSymbol = data.change_percentage > 0 ? '▲' : '▼';
+            const content = `
+                <strong>${data.name}</strong><br>
+                Net Worth: $${data.new_net_worth.toFixed(1)}B 
+                <span class="${changeClass}">${changeSymbol} ${Math.abs(data.change_percentage).toFixed(1)}%</span><br>
+                Reason: ${data.reason}
+            `;
+            addUpdate('wealth', content);
+        }
+        
+        function handleStockUpdate(data) {
+            const changeClass = data.change > 0 ? 'positive' : 'negative';
+            const changeSymbol = data.change > 0 ? '▲' : '▼';
+            const content = `
+                <strong>${data.symbol}</strong>: $${data.price.toFixed(2)} 
+                <span class="${changeClass}">${changeSymbol} $${Math.abs(data.change).toFixed(2)}</span><br>
+                Affects: ${data.affected_billionaires.join(', ') || 'None tracked'}
+            `;
+            addUpdate('stock', content);
+        }
+        
+        function handleNewsUpdate(data) {
+            const content = `
+                <strong>${data.headline}</strong><br>
+                ${data.summary}<br>
+                Impact: ${data.impact} | Affects: ${data.affected_billionaires.join(', ')}
+            `;
+            addUpdate('news', content);
+        }
+        
+        function handleSystemUpdate(data) {
+            if (data.message !== 'ping' && data.message !== 'pong') {
+                addUpdate('system', data.message);
+            }
+        }
+        
+        function addUpdate(type, content) {
+            const updates = document.getElementById('updates');
+            const update = document.createElement('div');
+            update.className = `update ${type}`;
+            
+            const time = document.createElement('div');
+            time.className = 'update-time';
+            time.textContent = new Date().toLocaleTimeString();
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'update-content';
+            contentDiv.innerHTML = content;
+            
+            update.appendChild(time);
+            update.appendChild(contentDiv);
+            
+            if (updates.firstChild && updates.firstChild.textContent.includes('Waiting for updates')) {
+                updates.innerHTML = '';
+            }
+            
+            updates.insertBefore(update, updates.firstChild);
+            
+            // Keep only last 50 updates
+            while (updates.children.length > 50) {
+                updates.removeChild(updates.lastChild);
+            }
+        }
+        
+        function clearUpdates() {
+            document.getElementById('updates').innerHTML = '<p style="color: #666;">Waiting for updates...</p>';
+        }
+        
+        function subscribeBillionaire() {
+            const input = document.getElementById('billionaireInput');
+            const name = input.value.trim();
+            if (name && !subscription.billionaires.includes(name)) {
+                subscription.billionaires.push(name);
+                input.value = '';
+                updateSubscription();
+            }
+        }
+        
+        function subscribeSymbol() {
+            const input = document.getElementById('symbolInput');
+            const symbol = input.value.trim().toUpperCase();
+            if (symbol && !subscription.symbols.includes(symbol)) {
+                subscription.symbols.push(symbol);
+                input.value = '';
+                updateSubscription();
+            }
+        }
+        
+        function updateSubscription() {
+            subscription.all_updates = document.getElementById('allUpdates').checked;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'Subscribe',
+                    subscription: subscription
+                }));
+            }
+            
+            updateSubscriptionDisplay();
+        }
+        
+        function updateSubscriptionDisplay() {
+            const display = document.getElementById('currentSubscriptions');
+            let html = '<strong>Current subscriptions:</strong><br>';
+            
+            if (subscription.all_updates) {
+                html += '• All updates<br>';
+            }
+            if (subscription.billionaires.length > 0) {
+                html += `• Billionaires: ${subscription.billionaires.join(', ')}<br>`;
+            }
+            if (subscription.symbols.length > 0) {
+                html += `• Symbols: ${subscription.symbols.join(', ')}<br>`;
+            }
+            
+            display.innerHTML = html;
+        }
+        
+        function sendPing() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'Ping' }));
+                setTimeout(sendPing, 30000); // Ping every 30 seconds
+            }
+        }
+        
+        // Auto-connect on load
+        window.onload = () => {
+            setTimeout(connect, 500);
+        };
+    </script>
+</body>
+</html>

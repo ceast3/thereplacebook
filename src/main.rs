@@ -3,11 +3,14 @@ mod errors;
 mod models;
 mod data_sources;
 mod features;
+mod realtime;
 
 use sqlx::PgPool;
 use std::env;
 use tracing_subscriber;
 use features::{MatchingEngine, Analytics};
+use std::sync::Arc;
+use realtime::{RealtimeState, websocket, price_feed, wealth_calculator, client_manager};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,6 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  match-country <country>   - Find billionaires by country");
         println!("  analytics           - Show industry and country distributions");
         println!("  wealth-tiers        - Show wealth tier distribution");
+        println!("  websocket-server    - Start real-time WebSocket server");
         return Ok(());
     }
 
@@ -96,11 +100,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("  {}: {} billionaires", tier, count);
             }
         }
+        "websocket-server" => {
+            start_websocket_server(pool).await?;
+        }
         _ => {
             println!("Unknown command: {}", args[1]);
             println!("Use one of the available commands listed above");
         }
     }
 
+    Ok(())
+}
+
+/// Starts the WebSocket server for real-time updates
+async fn start_websocket_server(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    use axum::{Router, routing::get};
+    use tower_http::cors::{CorsLayer, Any};
+    
+    println!("Starting WebSocket server on port 3000...");
+    
+    // Create shared state
+    let state = Arc::new(RealtimeState::new());
+    
+    // Load sample holdings data
+    price_feed::load_sample_holdings(state.clone()).await;
+    
+    // Start background tasks
+    let price_manager = Arc::new(price_feed::PriceFeedManager::new(state.clone()));
+    let wealth_calc = Arc::new(wealth_calculator::WealthCalculator::new(pool, state.clone()));
+    let client_mgr = Arc::new(client_manager::ClientManager::new(state.clone()));
+    
+    // Spawn background tasks
+    tokio::spawn(price_manager.start_monitoring());
+    tokio::spawn(wealth_calc.monitor_wealth_changes());
+    tokio::spawn(client_mgr.monitor_client_health());
+    
+    // Create WebSocket router
+    let ws_router = websocket::create_websocket_router();
+    
+    // Create main router with CORS
+    let app = Router::new()
+        .nest("/", ws_router)
+        .route("/health", get(|| async { "OK" }))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        )
+        .with_state(state);
+    
+    // Start server
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    println!("WebSocket server listening on ws://localhost:3000/ws");
+    println!("Health check available at http://localhost:3000/health");
+    println!("Press Ctrl+C to stop the server");
+    
+    axum::serve(listener, app).await?;
+    
     Ok(())
 }
