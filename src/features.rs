@@ -1,17 +1,39 @@
+//! Feature implementations for matching and analytics.
+//!
+//! This module provides the core business logic for:
+//! - Matching billionaires by various criteria
+//! - Generating analytics and distributions
+//! - Computing wealth tier breakdowns
+
 use crate::errors::Result;
 use crate::models::Billionaire;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
 
+/// Engine for matching billionaires based on various criteria.
+/// 
+/// The MatchingEngine provides methods to filter and search for
+/// billionaires based on industry, country, wealth tiers, and more.
 pub struct MatchingEngine {
     pool: PgPool,
 }
 
 impl MatchingEngine {
+    /// Creates a new MatchingEngine with the given database pool.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
+    /// Finds billionaires matching a specific industry.
+    /// 
+    /// # Arguments
+    /// * `industry` - Industry name to search for (case-insensitive partial match)
+    /// * `limit` - Maximum number of results (defaults to 50)
+    /// 
+    /// # Example
+    /// ```
+    /// let tech_billionaires = engine.find_matches_by_industry("technology", Some(10)).await?;
+    /// ```
     pub async fn find_matches_by_industry(&self, industry: &str, limit: Option<usize>) -> Result<Vec<Billionaire>> {
         let limit_clause = limit.unwrap_or(50);
         
@@ -53,6 +75,17 @@ impl MatchingEngine {
         Ok(billionaires)
     }
 
+    /// Finds billionaires within a specific wealth range.
+    /// 
+    /// # Arguments
+    /// * `min_wealth` - Minimum net worth in billions
+    /// * `max_wealth` - Maximum net worth in billions
+    /// 
+    /// # Example
+    /// ```
+    /// // Find billionaires worth between $5B and $20B
+    /// let mid_tier = engine.find_matches_by_wealth_tier(5.0, 20.0).await?;
+    /// ```
     pub async fn find_matches_by_wealth_tier(&self, min_wealth: f64, max_wealth: f64) -> Result<Vec<Billionaire>> {
         let rows = sqlx::query(
             "SELECT name, net_worth, industry, nationality, source_of_wealth, biography, rating
@@ -91,6 +124,15 @@ impl MatchingEngine {
         Ok(billionaires)
     }
 
+    /// Finds billionaires from a specific country.
+    /// 
+    /// # Arguments
+    /// * `country` - Country name to search for (case-insensitive partial match)
+    /// 
+    /// # Example
+    /// ```
+    /// let us_billionaires = engine.find_matches_by_country("United States").await?;
+    /// ```
     pub async fn find_matches_by_country(&self, country: &str) -> Result<Vec<Billionaire>> {
         let rows = sqlx::query(
             "SELECT name, net_worth, industry, nationality, source_of_wealth, biography, rating
@@ -128,6 +170,7 @@ impl MatchingEngine {
         Ok(billionaires)
     }
 
+    /// Parses net worth string format (e.g., "$12.5B") to numeric value.
     fn parse_net_worth(&self, net_worth_str: &str) -> f64 {
         net_worth_str
             .replace("$", "")
@@ -137,15 +180,32 @@ impl MatchingEngine {
     }
 }
 
+/// Analytics engine for generating insights and distributions.
+/// 
+/// The Analytics struct provides methods to analyze the billionaire
+/// data and generate various distributions and statistics.
 pub struct Analytics {
     pool: PgPool,
 }
 
 impl Analytics {
+    /// Creates a new Analytics engine with the given database pool.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
+    /// Gets the distribution of billionaires by industry.
+    /// 
+    /// # Returns
+    /// * `HashMap<String, usize>` - Map of industry name to count
+    /// 
+    /// # Example
+    /// ```
+    /// let distribution = analytics.get_industry_distribution().await?;
+    /// for (industry, count) in distribution {
+    ///     println!("{}: {} billionaires", industry, count);
+    /// }
+    /// ```
     pub async fn get_industry_distribution(&self) -> Result<HashMap<String, usize>> {
         let rows = sqlx::query(
             "SELECT industry, COUNT(*) as count FROM users WHERE industry IS NOT NULL GROUP BY industry"
@@ -163,6 +223,10 @@ impl Analytics {
         Ok(distribution)
     }
 
+    /// Gets the distribution of billionaires by country.
+    /// 
+    /// # Returns
+    /// * `HashMap<String, usize>` - Map of country name to count
     pub async fn get_country_distribution(&self) -> Result<HashMap<String, usize>> {
         let rows = sqlx::query(
             "SELECT nationality, COUNT(*) as count FROM users WHERE nationality IS NOT NULL GROUP BY nationality"
@@ -180,6 +244,16 @@ impl Analytics {
         Ok(distribution)
     }
 
+    /// Gets the distribution of billionaires by wealth tiers.
+    /// 
+    /// Wealth tiers are defined as:
+    /// - 1-5B: Entry level billionaires
+    /// - 5-20B: Mid-tier billionaires  
+    /// - 20-50B: Upper tier
+    /// - 50B+: Ultra wealthy
+    /// 
+    /// # Returns
+    /// * `HashMap<String, usize>` - Map of tier name to count
     pub async fn get_wealth_tiers(&self) -> Result<HashMap<String, usize>> {
         let rows = sqlx::query(
             "SELECT 
@@ -207,6 +281,16 @@ impl Analytics {
         Ok(tiers)
     }
 
+    /// Gets the top philanthropists based on rating.
+    /// 
+    /// Note: This currently filters by those who have philanthropy data,
+    /// but could be enhanced to score based on donation amounts.
+    /// 
+    /// # Arguments
+    /// * `limit` - Maximum number of results to return
+    /// 
+    /// # Returns
+    /// * `Vec<String>` - Names of top philanthropists
     pub async fn get_top_philanthropists(&self, limit: usize) -> Result<Vec<String>> {
         let rows = sqlx::query(
             "SELECT name FROM users 
