@@ -4,6 +4,7 @@ mod models;
 mod data_sources;
 mod features;
 mod realtime;
+mod search;
 
 use sqlx::PgPool;
 use std::env;
@@ -11,6 +12,7 @@ use tracing_subscriber;
 use features::{MatchingEngine, Analytics};
 use std::sync::Arc;
 use realtime::{RealtimeState, websocket, price_feed, wealth_calculator, client_manager};
+use search::{SearchEngine, SearchQuery, SearchField};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,6 +32,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  analytics           - Show industry and country distributions");
         println!("  wealth-tiers        - Show wealth tier distribution");
         println!("  websocket-server    - Start real-time WebSocket server");
+        println!("  search <query>      - Full-text search in biographies");
+        println!("  search-init         - Initialize search indexes");
         return Ok(());
     }
 
@@ -102,6 +106,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "websocket-server" => {
             start_websocket_server(pool).await?;
+        }
+        "search" => {
+            if args.len() < 3 {
+                println!("Usage: {} search <query>", args[0]);
+                return Ok(());
+            }
+            let search_engine = SearchEngine::new(pool);
+            let query = SearchQuery {
+                query: Some(args[2..].join(" ")),
+                ..Default::default()
+            };
+            let results = search_engine.search(query).await?;
+            
+            println!("Found {} results:", results.len());
+            for (i, result) in results.iter().enumerate().take(10) {
+                println!("\n{}. {} (${:.1}B) - {}", 
+                    i + 1, 
+                    result.billionaire.name, 
+                    result.billionaire.net_worth,
+                    result.billionaire.industry
+                );
+                println!("   Relevance: {:.2}", result.relevance_score);
+                for snippet in &result.highlight_snippets {
+                    println!("   {}: {}", snippet.field, snippet.snippet);
+                }
+            }
+        }
+        "search-init" => {
+            println!("Initializing search indexes...");
+            let search_engine = SearchEngine::new(pool);
+            search_engine.create_search_indexes().await?;
+            println!("Search indexes created successfully!");
         }
         _ => {
             println!("Unknown command: {}", args[1]);
