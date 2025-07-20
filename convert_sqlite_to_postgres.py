@@ -1,6 +1,6 @@
 import re
 
-with open("dump.sql", "r") as f:
+with open("PSQL_scripts/dump.sql", "r") as f:
     content = f.read()
 
 # Convert SQLite syntax to PostgreSQL
@@ -11,7 +11,7 @@ content = content.replace("BOOLEAN", "BOOLEAN DEFAULT FALSE")  # Ensure boolean 
 content = re.sub(r"INSERT INTO \"(.*?)\"", r"INSERT INTO \1", content)  # Remove double quotes
 
 # Write the fixed SQL to a new file
-with open("dump_postgres.sql", "w") as f:
+with open("PSQL_scripts/dump_postgres.sql", "w") as f:
     f.write(content)
 
 print("Converted dump file saved as dump_postgres.sql")

@@ -1,0 +1,25 @@
+BEGIN;
+
+-- Create a temporary table to hold the new net worth values
+CREATE TEMP TABLE new_net_worths (
+    name text PRIMARY KEY,
+    net_worth text
+);
+
+-- Insert the current net worth values for each billionaire
+INSERT INTO new_net_worths (name, net_worth)
+VALUES
+    ('Elon Musk', '$380.1 billion'),
+    ('Bernard Arnault', '$200.0 billion'),
+    ('Jeff Bezos', '$190.0 billion'),
+    ('Bill Gates', '$160.0 billion'),
+    ('Warren Buffett', '$110.0 billion');
+    -- Add additional rows as necessary
+
+-- Update the public.users table by joining with the temporary table
+UPDATE public.users u
+SET net_worth = n.net_worth
+FROM new_net_worths n
+WHERE u.name = n.name;
+
+COMMIT;
