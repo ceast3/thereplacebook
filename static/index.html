@@ -11,6 +11,7 @@
             color: black;
             font-family: Arial, sans-serif;
             text-align: center;
+            touch-action: pan-y;
         }
         .header {
             background-color: #902118;
@@ -139,9 +140,159 @@
             background-color: #a52a2a;
             transform: scale(1.05); /* Slight zoom effect on hover */
         }
+        
+        /* Gamification Styles */
+        .gamification-panel {
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 600px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 10px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 120px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #902118;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .achievement-badge {
+            display: inline-block;
+            background-color: #ffd700;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 2px;
+            font-weight: bold;
+        }
+        
+        .share-button {
+            background-color: #1da1f2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .share-button:hover {
+            background-color: #1a8cd8;
+        }
+        
+        /* Mobile improvements */
+        @media (max-width: 768px) {
+            .vote-box {
+                touch-action: none;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            
+            .vote-button {
+                padding: 12px 24px;
+                font-size: 16px;
+                min-height: 44px;
+            }
+            
+            .gamification-panel {
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            .stat-card {
+                min-width: 100px;
+                padding: 8px 12px;
+            }
+        }
+        
+        /* Pull to refresh */
+        .pull-to-refresh {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #902118;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 0 0 10px 10px;
+            transition: top 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .pull-to-refresh.show {
+            top: 0;
+        }
+        
+        /* Swipe indicator */
+        .swipe-indicator {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 48px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .swipe-left {
+            left: 20px;
+            color: #dc2626;
+        }
+        
+        .swipe-right {
+            right: 20px;
+            color: #16a34a;
+        }
+        
+        .swipe-indicator.show {
+            opacity: 0.8;
+        }
     </style>
     <script>
         let users = [];
+        let touchStartX = null;
+        let touchStartY = null;
+        let isDragging = false;
+        
+        // Gamification state
+        const gameState = {
+            streak: parseInt(localStorage.getItem('votingStreak') || '0'),
+            dailyVotes: parseInt(localStorage.getItem('dailyVotes') || '0'),
+            totalVotes: parseInt(localStorage.getItem('totalVotes') || '0'),
+            lastVoteDate: localStorage.getItem('lastVoteDate') || '',
+            achievements: JSON.parse(localStorage.getItem('achievements') || '[]')
+        };
+        
+        // Achievement definitions
+        const achievementDefs = {
+            firstVote: { name: '\ud83c\udf1f First Vote', condition: (state) => state.totalVotes >= 1 },
+            streak5: { name: '\ud83d\udd25 5 Day Streak', condition: (state) => state.streak >= 5 },
+            streak10: { name: '\ud83d\udd25 10 Day Streak', condition: (state) => state.streak >= 10 },
+            votes25: { name: '\ud83c\udfc6 25 Votes', condition: (state) => state.totalVotes >= 25 },
+            votes100: { name: '\ud83d\udc51 100 Votes', condition: (state) => state.totalVotes >= 100 },
+            dailyGoal: { name: '\u2728 Daily Goal', condition: (state) => state.dailyVotes >= 10 }
+        };
 
         async function fetchUsers() {
             const response = await fetch("/users");
@@ -181,9 +332,84 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ winner_id: winnerId, loser_id: parseInt(loserId) })
             });
-
+            
+            updateGameState();
             showRandomPair();
             loadLeaderboard();
+        }
+        
+        function updateGameState() {
+            const today = new Date().toDateString();
+            
+            // Update streak
+            if (gameState.lastVoteDate === today) {
+                gameState.dailyVotes++;
+            } else if (gameState.lastVoteDate === new Date(Date.now() - 86400000).toDateString()) {
+                gameState.streak++;
+                gameState.dailyVotes = 1;
+            } else {
+                gameState.streak = 1;
+                gameState.dailyVotes = 1;
+            }
+            
+            gameState.totalVotes++;
+            gameState.lastVoteDate = today;
+            
+            // Save state
+            localStorage.setItem('votingStreak', gameState.streak.toString());
+            localStorage.setItem('dailyVotes', gameState.dailyVotes.toString());
+            localStorage.setItem('totalVotes', gameState.totalVotes.toString());
+            localStorage.setItem('lastVoteDate', gameState.lastVoteDate);
+            
+            // Check achievements
+            checkAchievements();
+            
+            // Update UI
+            updateGamificationUI();
+        }
+        
+        function checkAchievements() {
+            for (const [key, achievement] of Object.entries(achievementDefs)) {
+                if (!gameState.achievements.includes(key) && achievement.condition(gameState)) {
+                    gameState.achievements.push(key);
+                    showAchievementNotification(achievement.name);
+                }
+            }
+            localStorage.setItem('achievements', JSON.stringify(gameState.achievements));
+        }
+        
+        function showAchievementNotification(name) {
+            const notification = document.createElement('div');
+            notification.className = 'achievement-badge';
+            notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background-color: #ffd700; animation: slideIn 0.5s ease;';
+            notification.textContent = `\ud83c\udf86 Achievement: ${name}`;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 3000);
+        }
+        
+        function updateGamificationUI() {
+            document.getElementById('streak-count').textContent = gameState.streak;
+            document.getElementById('daily-progress').textContent = `${gameState.dailyVotes}/10`;
+            document.getElementById('total-votes').textContent = gameState.totalVotes;
+            
+            // Update achievements display
+            const achievementsDiv = document.getElementById('achievements');
+            achievementsDiv.innerHTML = gameState.achievements
+                .map(key => `<span class="achievement-badge">${achievementDefs[key].name}</span>`)
+                .join('');
+        }
+        
+        function shareResults() {
+            const text = `I've voted ${gameState.totalVotes} times on Who's Your Baddy with a ${gameState.streak} day streak! \ud83d\udd25`;
+            const url = window.location.href;
+            
+            if (navigator.share) {
+                navigator.share({ title: "Who's Your Baddy", text, url });
+            } else {
+                // Fallback to Twitter
+                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`);
+            }
         }
 
         async function loadLeaderboard() {
@@ -202,13 +428,164 @@
             });
         }
 
+        // Mobile swipe handling
+        function setupSwipeGestures() {
+            const leftBox = document.getElementById('left');
+            const rightBox = document.getElementById('right');
+            
+            // Touch events for both boxes
+            [leftBox, rightBox].forEach(box => {
+                box.addEventListener('touchstart', handleTouchStart, { passive: true });
+                box.addEventListener('touchmove', handleTouchMove, { passive: false });
+                box.addEventListener('touchend', handleTouchEnd, { passive: true });
+            });
+        }
+        
+        function handleTouchStart(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isDragging = true;
+        }
+        
+        function handleTouchMove(e) {
+            if (!touchStartX || !isDragging) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const diffX = touchX - touchStartX;
+            const diffY = touchY - touchStartY;
+            
+            // Only handle horizontal swipes
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                e.preventDefault();
+                
+                const box = e.currentTarget;
+                const indicator = box.querySelector('.swipe-indicator');
+                
+                // Show swipe indicator
+                if (Math.abs(diffX) > 50) {
+                    indicator.classList.add('show');
+                } else {
+                    indicator.classList.remove('show');
+                }
+                
+                // Visual feedback
+                box.style.transform = `translateX(${diffX * 0.3}px) rotate(${diffX * 0.05}deg)`;
+                box.style.opacity = Math.max(0.5, 1 - Math.abs(diffX) / 300);
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            if (!touchStartX || !isDragging) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const diffX = touchEndX - touchStartX;
+            const box = e.currentTarget;
+            const indicator = box.querySelector('.swipe-indicator');
+            
+            // Reset visual state
+            box.style.transform = '';
+            box.style.opacity = '';
+            indicator.classList.remove('show');
+            
+            // Trigger vote if swipe threshold met
+            if (Math.abs(diffX) > 100) {
+                const voteId = parseInt(box.getAttribute('data-id'));
+                vote(voteId);
+            }
+            
+            touchStartX = null;
+            touchStartY = null;
+            isDragging = false;
+        }
+        
+        // Pull to refresh
+        let pullStartY = null;
+        let isPulling = false;
+        
+        function setupPullToRefresh() {
+            document.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    pullStartY = e.touches[0].clientY;
+                    isPulling = true;
+                }
+            }, { passive: true });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (!isPulling || !pullStartY) return;
+                
+                const pullDistance = e.touches[0].clientY - pullStartY;
+                
+                if (pullDistance > 0 && window.scrollY === 0) {
+                    e.preventDefault();
+                    
+                    if (pullDistance > 60) {
+                        document.getElementById('pull-refresh').classList.add('show');
+                    }
+                }
+            }, { passive: false });
+            
+            document.addEventListener('touchend', (e) => {
+                if (!isPulling || !pullStartY) return;
+                
+                const pullDistance = e.changedTouches[0].clientY - pullStartY;
+                const refreshEl = document.getElementById('pull-refresh');
+                
+                if (pullDistance > 60) {
+                    refreshEl.classList.add('show');
+                    
+                    // Refresh data
+                    Promise.all([fetchUsers(), loadLeaderboard()]).then(() => {
+                        setTimeout(() => {
+                            refreshEl.classList.remove('show');
+                        }, 500);
+                    });
+                } else {
+                    refreshEl.classList.remove('show');
+                }
+                
+                pullStartY = null;
+                isPulling = false;
+            }, { passive: true });
+        }
+        
+        // Add animation keyframes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
+
         window.onload = () => {
             fetchUsers();
             loadLeaderboard();
+            updateGamificationUI();
+            setupSwipeGestures();
+            setupPullToRefresh();
+            
+            // Check if returning user needs streak reset
+            const today = new Date().toDateString();
+            const lastVote = new Date(gameState.lastVoteDate || 0);
+            const daysSinceLastVote = Math.floor((new Date() - lastVote) / 86400000);
+            
+            if (daysSinceLastVote > 1 && gameState.streak > 0) {
+                gameState.streak = 0;
+                gameState.dailyVotes = 0;
+                localStorage.setItem('votingStreak', '0');
+                localStorage.setItem('dailyVotes', '0');
+                updateGamificationUI();
+            }
         };
     </script>
 </head>
 <body>
+
+<div class="pull-to-refresh" id="pull-refresh">
+    Refreshing...
+</div>
 
 <div class="header">
     Who's Your Baddy?
@@ -216,9 +593,31 @@
 
 <p class="text-lg font-semibold mt-4">Who's worse? Click to choose.</p>
 
+<!-- Gamification Panel -->
+<div class="gamification-panel">
+    <div class="stat-card">
+        <div class="stat-value" id="streak-count">0</div>
+        <div class="stat-label">🔥 Voting Streak</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="daily-progress">0/10</div>
+        <div class="stat-label">📊 Daily Goal</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="total-votes">0</div>
+        <div class="stat-label">🗳️ Total Votes</div>
+    </div>
+</div>
+
+<!-- Achievements -->
+<div id="achievements" style="margin: 10px auto; max-width: 600px;">
+    <!-- Badges will be inserted here -->
+</div>
+
 <div class="container">
     <div class="vote-container">
         <div id="left" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
+            <div class="swipe-indicator swipe-left" id="swipe-left">👎</div>
             <img id="left-img" class="image">
             <p id="left-name" class="mt-2 text-lg font-semibold"></p>
 
@@ -237,6 +636,7 @@
         <h2 class="text-3xl font-bold">VS</h2>
 
         <div id="right" class="vote-box" onclick="vote(parseInt(this.getAttribute('data-id')))">
+            <div class="swipe-indicator swipe-right" id="swipe-right">👎</div>
             <img id="right-img" class="image">
             <p id="right-name" class="mt-2 text-lg font-semibold"></p>
 
@@ -254,6 +654,9 @@
     </div>
 
     <h2 class="text-2xl font-semibold mt-8">Leaderboard</h2>
+    <button class="share-button" onclick="shareResults()">
+        Share Your Results 📱
+    </button>
     <div class="leaderboard">
         <table>
             <thead>
